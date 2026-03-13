@@ -818,7 +818,7 @@ dependencies = [
 
 [[package]]
 name = "lcp-db-reset"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -831,6 +831,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
+ "thiserror",
 ]
 
 [[package]]

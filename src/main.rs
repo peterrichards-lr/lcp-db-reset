@@ -42,14 +42,12 @@ fn check_lcp_auth() -> Result<()> {
     Ok(())
 }
 
-fn reset_db(
-    project: String,
-    password: Option<String>,
-    force: bool,
-    service: String,
-) -> Result<()> {
+fn reset_db(project: String, password: Option<String>, force: bool, service: String) -> Result<()> {
     // 1. Find Instance ID from logs
-    println!("Fetching logs for project: {} service: {} to find instance ID...", project, service);
+    println!(
+        "Fetching logs for project: {} service: {} to find instance ID...",
+        project, service
+    );
     let instance_id = find_instance(&project, &service)?;
     println!("Found instance: {}", instance_id);
 
@@ -82,7 +80,7 @@ fn reset_db(
     // 4. Construct and Execute commands via lcp shell
     let escaped_password = db_password.replace("'", "'\\''");
     let sql_commands = "DROP SCHEMA public CASCADE; CREATE SCHEMA public;";
-    
+
     let psql_cmd = format!(
         "export PGPASSWORD='{}' && psql -U dxpcloud -h database -d lportal -c \"{}\"",
         escaped_password, sql_commands
@@ -109,7 +107,7 @@ fn reset_db(
             .stdin
             .take()
             .context("Failed to open stdin of lcp shell")?;
-        
+
         writeln!(stdin, "{}", psql_cmd)?;
         writeln!(stdin, "exit")?;
     }
@@ -141,7 +139,9 @@ fn find_instance(project: &str, service: &str) -> Result<String> {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(anyhow::anyhow!(
             "Failed to fetch logs from {} on {}: {}",
-            project, service, stderr
+            project,
+            service,
+            stderr
         ));
     }
 
@@ -178,6 +178,9 @@ mod tests {
     #[test]
     fn test_parse_instance_id_from_logs() {
         let input = "Mar 13, 09:20:06.156  build-5 [liferay-7d7fbb6cb5-tb6dc] [tomcat] WARNING ...";
-        assert_eq!(parse_instance_id(input, "liferay"), Some("liferay-7d7fbb6cb5-tb6dc".to_string()));
+        assert_eq!(
+            parse_instance_id(input, "liferay"),
+            Some("liferay-7d7fbb6cb5-tb6dc".to_string())
+        );
     }
 }

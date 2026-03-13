@@ -2,9 +2,9 @@ name: Rust CI
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   pull_request:
-    branches: [ "main" ]
+    branches: ["main"]
 
 jobs:
   check:
@@ -14,8 +14,8 @@ jobs:
       - name: Install Rust
         run: rustup update stable && rustup component add clippy rustfmt
       - name: Format Check
-        run: cargo fmt --all -- --check
+        run: cargo fmt-check
       - name: Lint with Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo lint
       - name: Run Tests
         run: cargo test --verbose
