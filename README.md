@@ -1,80 +1,43 @@
-# Liferay Rust Tool Template
+# Liferay Cloud Database Reset Tool (`lcp-db-reset`)
 
-A modular template for building high-performance, cross-platform CLI tools for Liferay DXP, Liferay Cloud (LXC), and Client Extensions.
-
-## New in v0.2.0
-
-- **Project Discovery:** Robust logic to detect Workspace, Liferay Cloud, and Client Extension roots.
-- **Git Integration:** Built-in wrappers for common Git operations (add, commit, push).
-- **Features Support:** Optional support for Web Scraping (`web`) and YAML processing (`yaml`).
-- **Distribution:** Includes a Homebrew formula example for easy macOS distribution.
+A streamlined, cross-platform CLI tool to securely and safely reset the database schema of your Liferay Cloud (LCP) environments. It automates finding instance IDs and executing non-interactive PostgreSQL commands inside the `lcp shell`.
 
 ## Features
 
-- **Cross-Platform:** GitHub Actions pre-configured for Windows, Linux, and macOS (ARM/Intel).
-- **Liferay Aware:** Logic for path resolution and product version detection from `gradle.properties`.
-- **Modern CLI:** Built on `clap` for a professional command-line experience.
+- **Safe:** Fails fast if you aren't authenticated with `lcp`. Requires explicit confirmation before wiping the database.
+- **Smart:** Automatically discovers your running Liferay instances.
+- **Secure:** Uses hidden prompts for your database password instead of keeping it in your shell history (unless passed via flag).
+- **Automated:** Bypasses interactive `psql` prompts entirely by piping commands directly into the container.
 
-## Project Structure
+## Installation
 
-```plaintext
-.
-├── .github/workflows/release.yml # Multi-OS CI/CD
-├── src/
-│   ├── main.rs          # Command routing
-│   ├── core/
-│   │   ├── mod.rs       # Core traits
-│   │   └── env.rs       # Project discovery logic
-│   ├── utils/
-│   │   ├── mod.rs       # Utility re-exports
-│   │   ├── git.rs       # Git wrappers
-│   │   └── xml.rs       # Recursive XML logic
-│   └── cli.rs           # Command definitions
-├── formula.rb.example   # Example for Homebrew distribution
-├── .gitignore           # Tracks Cargo.lock for reliable CI
-├── Cargo.toml           # Feature-based dependencies
-└── LICENSE (MIT)
+You can download the pre-compiled executable for your OS from the [Releases](#) page.
+
+Alternatively, if you have Rust installed, you can build from source:
+```bash
+cargo install --path .
 ```
 
-## Getting Started
+*(Note: Homebrew and Scoop support can be set up via the included Gemini prompts after your first release!)*
 
-1. Click **"Use this template"** on GitHub.
-2. Update the `name` and `description` in `Cargo.toml`.
-3. Enable features in `Cargo.toml` if needed:
-   ```toml
-   [dependencies]
-   lfr-tool = { path = ".", features = ["web", "yaml"] }
-   ```
-4. Update `artifact_name` in `.github/workflows/release.yml`.
-5. Customize subcommands in `src/main.rs`.
-6. Push a tag (e.g., `v1.0.0`) to trigger an automated release.
-
-## Development
+## Usage
 
 ```bash
-# Build locally
-cargo build
+# Basic usage (will prompt for password and confirmation)
+lcp-db-reset reset --project my-project-id --environment dev
 
-# Run with arguments
-cargo run -- --help
+# Fully automated usage (for CI/CD or scripts)
+lcp-db-reset reset -p my-project-id -e dev -s liferay --password "my-secret-pass" --force
 ```
 
-## Distribution (macOS, Linux, Windows)
+### Options:
+- `-p, --project <PROJECT>`: The project ID (e.g., lfr-prj)
+- `-e, --environment <ENVIRONMENT>`: The environment (e.g., dev, uat, prd)
+- `-s, --service <SERVICE>`: The service name [default: liferay]
+- `-i, --instance <INSTANCE>`: Specific instance ID (optional, found automatically if missing)
+- `-P, --password <PASSWORD>`: Database password (optional, prompted if missing)
+- `--force`: Skip confirmation prompt
 
-To avoid "Unidentified Developer" warnings on macOS and ensure a secure, user-level installation on Windows, we recommend building from source via **Homebrew** or **Scoop**. 
+## Disclaimer
 
-### Automated Distribution via Gemini
-
-This template includes an automated prompt for Gemini CLI to handle updating your Homebrew tap and Scoop bucket repositories with new releases.
-
-When you create a new GitHub release, you can simply ask Gemini:
-
-```bash
-"Please execute the steps in .gemini/prompts/update-distribution-channels.md to update my distribution repositories"
-```
-
-Gemini will automatically:
-1. Extract metadata from `Cargo.toml`.
-2. Calculate the SHA256 hash of the release tarball.
-3. Generate and write the Homebrew formula (`formula.rb.example`) and Scoop manifest (`scoop.json.example`).
-4. Commit and push the updates to your local `homebrew-tap` and `scoop-bucket` repositories.
+This tool executes `DROP SCHEMA public CASCADE; CREATE SCHEMA public;`. It is DESTRUCTIVE. Use with extreme caution.
