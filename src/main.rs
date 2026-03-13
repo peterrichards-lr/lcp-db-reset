@@ -10,57 +10,63 @@ use std::process::{Command, Stdio};
 fn main() -> Result<()> {
     let args = App::parse();
 
+    // Fail fast if not logged in
+    check_lcp_auth()?;
+
     match args.command {
         AppCommands::Reset {
             project,
-            environment,
-            service,
-            instance,
             password,
             force,
+            service,
         } => {
-            reset_db(project, environment, service, instance, password, force)?;
+            reset_db(project, password, force, service)?;
         }
     }
 
     Ok(())
 }
 
+fn check_lcp_auth() -> Result<()> {
+    let output = Command::new("lcp")
+        .arg("auth")
+        .arg("token")
+        .output()
+        .context("Failed to run lcp CLI. Is it installed?")?;
+
+    if !output.status.success() {
+        return Err(anyhow::anyhow!(
+            "You are not logged into Liferay Cloud (lcp). Please run 'lcp login' first."
+        ));
+    }
+    Ok(())
+}
+
 fn reset_db(
     project: String,
-    environment: String,
-    service: String,
-    instance: Option<String>,
     password: Option<String>,
     force: bool,
+    service: String,
 ) -> Result<()> {
-    // 1. Find Instance ID if not provided
-    let instance_id = if let Some(i) = instance {
-        i
-    } else {
-        println!("No instance ID provided. Searching for running instances...");
-        find_instance(&project, &environment, &service)?
-    };
-
-    println!("Using instance: {}", instance_id);
+    // 1. Find Instance ID from logs
+    println!("Fetching logs for project: {} service: {} to find instance ID...", project, service);
+    let instance_id = find_instance(&project, &service)?;
+    println!("Found instance: {}", instance_id);
 
     // 2. Get Password if not provided
     let db_password = if let Some(p) = password {
         p
     } else {
         Password::new()
-            .with_prompt(format!(
-                "Enter database password for {}/{}/{}",
-                project, environment, service
-            ))
+            .with_prompt(format!("Enter database password for project: {}", project))
             .interact()?
     };
 
     // 3. Confirmation
     if !force {
         println!(
-            "\nWARNING: This will wipe the 'public' schema in the database for project: {} env: {}!",
-            project, environment
+            "\nWARNING: This will wipe the 'public' schema in the database for project: {}!",
+            project
         );
         println!("This operation is DESTRUCTIVE and IRREVERSIBLE.");
         if !Confirm::new()
@@ -74,22 +80,12 @@ fn reset_db(
     }
 
     // 4. Construct and Execute commands via lcp shell
-    // We'll use a sequence of commands sent to lcp shell's stdin.
-    // The user's manual process is:
-    // psql -U dxpcloud -d lportal
-    // (Enter password)
-    // DROP SCHEMA public CASCADE;
-    // CREATE SCHEMA public;
-
-    // However, if we can do it in one shot it's better.
-    // We'll try to use PGPASSWORD to avoid interactive prompt from psql inside lcp shell.
-    // Note: database host is typically 'database' in LCP.
-
+    let escaped_password = db_password.replace("'", "'\\''");
     let sql_commands = "DROP SCHEMA public CASCADE; CREATE SCHEMA public;";
-    // We use double quotes for the command to handle single quotes in the SQL.
+    
     let psql_cmd = format!(
         "export PGPASSWORD='{}' && psql -U dxpcloud -h database -d lportal -c \"{}\"",
-        db_password, sql_commands
+        escaped_password, sql_commands
     );
 
     println!("Resetting database schema... (Executing psql inside lcp shell)");
@@ -98,8 +94,6 @@ fn reset_db(
         .arg("shell")
         .arg("-p")
         .arg(&project)
-        .arg("-e")
-        .arg(&environment)
         .arg("-s")
         .arg(&service)
         .arg("-i")
@@ -108,14 +102,14 @@ fn reset_db(
         .stdout(Stdio::inherit())
         .stderr(Stdio::inherit())
         .spawn()
-        .context("Failed to spawn lcp shell. Is lcp CLI installed?")?;
+        .context("Failed to spawn lcp shell.")?;
 
     {
         let mut stdin = child
             .stdin
             .take()
             .context("Failed to open stdin of lcp shell")?;
-        // Send the command and then exit the shell
+        
         writeln!(stdin, "{}", psql_cmd)?;
         writeln!(stdin, "exit")?;
     }
@@ -133,66 +127,57 @@ fn reset_db(
     Ok(())
 }
 
-fn find_instance(project: &str, environment: &str, service: &str) -> Result<String> {
-    // Attempt with lcp list --detailed
-    let output = Command::new("lcp")
-        .arg("list")
-        .arg("-p")
-        .arg(project)
-        .arg("-e")
-        .arg(environment)
-        .arg("-s")
-        .arg(service)
-        .arg("--detailed")
-        .output()
-        .context("Failed to run lcp list")?;
-
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if let Some(id) = parse_instance_id(&stdout, service) {
-            return Ok(id);
-        }
-    }
-
-    // Fallback to lcp log (as suggested by user tip)
-    println!("Could not find instance via 'lcp list', trying 'lcp log'...");
+fn find_instance(project: &str, service: &str) -> Result<String> {
     let output = Command::new("lcp")
         .arg("log")
         .arg("-p")
         .arg(project)
-        .arg("-e")
-        .arg(environment)
         .arg("-s")
         .arg(service)
         .output()
         .context("Failed to run lcp log")?;
 
-    if output.status.success() {
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        if let Some(id) = parse_instance_id(&stdout, service) {
-            return Ok(id);
-        }
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        return Err(anyhow::anyhow!(
+            "Failed to fetch logs from {} on {}: {}",
+            project, service, stderr
+        ));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    if let Some(id) = parse_instance_id(&stdout, service) {
+        return Ok(id);
     }
 
     Err(anyhow::anyhow!(
-        "Could not find a running instance ID for service: {}. Please specify it manually with -i.",
+        "Could not find a running instance ID for service: {}. Please ensure it is running.",
         service
     ))
 }
 
 fn parse_instance_id(input: &str, service: &str) -> Option<String> {
-    // Basic heuristic: look for words starting with service name and followed by a dash and hex/hash.
-    // e.g., liferay-777c...
-    for word in input.split_whitespace() {
-        // Clean the word from brackets, quotes, etc.
-        let clean_word = word.trim_matches(|c: char| !c.is_alphanumeric() && c != '-');
-        if clean_word.starts_with(service) && clean_word.len() > service.len() + 5 {
-            // Check if it has a dash and some suffix
-            let parts: Vec<&str> = clean_word.split('-').collect();
-            if parts.len() >= 2 && parts[0] == service {
-                return Some(clean_word.to_string());
+    // Look for instance ID in the format [service-xxxxx-xxxxx]
+    for line in input.lines().rev() {
+        if let Some(start) = line.find('[') {
+            if let Some(end) = line.find(']') {
+                let instance = &line[start + 1..end];
+                if instance.starts_with(service) && instance.len() > service.len() + 5 {
+                    return Some(instance.to_string());
+                }
             }
         }
     }
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_instance_id_from_logs() {
+        let input = "Mar 13, 09:20:06.156  build-5 [liferay-7d7fbb6cb5-tb6dc] [tomcat] WARNING ...";
+        assert_eq!(parse_instance_id(input, "liferay"), Some("liferay-7d7fbb6cb5-tb6dc".to_string()));
+    }
 }

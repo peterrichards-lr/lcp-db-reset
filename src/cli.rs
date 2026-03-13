@@ -10,23 +10,11 @@ pub struct App {
 
 #[derive(Subcommand)]
 pub enum AppCommands {
-    /// Reset the database schema for a given project/environment
+    /// Reset the database schema for a given project
     Reset {
-        /// The project ID (e.g., lfr-prj)
+        /// The project ID (e.g., lctpjr20260310-prd)
         #[arg(short, long)]
         project: String,
-
-        /// The environment (e.g., dev, uat, prd)
-        #[arg(short, long)]
-        environment: String,
-
-        /// The service name (default: liferay)
-        #[arg(short, long, default_value = "liferay")]
-        service: String,
-
-        /// Specific instance ID (optional, found automatically if missing)
-        #[arg(short, long)]
-        instance: Option<String>,
 
         /// Database password (optional, prompted if missing)
         #[arg(short = 'P', long)]
@@ -35,5 +23,9 @@ pub enum AppCommands {
         /// Skip confirmation prompt
         #[arg(long)]
         force: bool,
+
+        /// Specific service name (default: liferay)
+        #[arg(short, long, default_value = "liferay")]
+        service: String,
     },
 }
