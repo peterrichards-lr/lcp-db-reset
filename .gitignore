@@ -17,4 +17,6 @@ Thumbs.db
 /osgi/state
 *.log
 *.bak
+*.exp
 .env
+lcp-db-reset.json
