@@ -1,7 +1,4 @@
 [alias]
-# Setup the shared git hooks
-setup-hooks = "config core.hooksPath .githooks"
-
 # Show the tool's help
 setup = "run -- --help"
 
