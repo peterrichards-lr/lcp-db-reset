@@ -1,6 +1,6 @@
 [package]
 name = "lcp-db-reset"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 authors = ["Peter Richards <peter.richards@liferay.com>"]
 description = "A Liferay Cloud utility to reset the database schema."
