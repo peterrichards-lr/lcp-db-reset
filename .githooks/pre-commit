@@ -1,6 +1,14 @@
 #!/bin/sh
 set -e
 
+# Check for unresolved template placeholders
+if command -v python3 >/dev/null 2>&1; then
+    if [ -f "scripts/doctor.py" ]; then
+        echo "Running doctor placeholder check..."
+        python3 scripts/doctor.py
+    fi
+fi
+
 # Format Rust files (staged only)
 # This uses the built-in git shell which is available on Windows/Git Bash and Unix
 echo "Formatting Rust files..."

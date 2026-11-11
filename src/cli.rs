@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[command(name = "lcp-db-reset")]
+#[command(name = "lcp-db-reset", version)]
 #[command(about = "Reset Liferay Cloud (LCP) database schema", long_about = None)]
 pub struct App {
     #[command(subcommand)]
