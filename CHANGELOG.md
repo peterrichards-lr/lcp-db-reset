@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+_Nothing yet._
+
+## [1.0.2] - 2026-11-11
+
 ### Changed
 
 - Label Dependabot pull requests `no-issue-needed`, alongside the default `dependencies` and ecosystem labels, so bot PRs are marked as intentionally having no linked issue.
+- Update Rust dependencies:
+  - `serde` 1.0.228 → 1.0.229
+  - `chrono` 0.4.43 → 0.4.45
+  - `serde_json` 1.0.149 → 1.0.154
+  - `anyhow` 1.0.101 → 1.0.104
+  - `thiserror` 1.0.69 → 2.0.21
+- Update GitHub Actions:
+  - `actions/upload-artifact` 7.0.1 → 7.0.2
+  - `actions/download-artifact` 8.0.1 → 8.0.2
+  - `dtolnay/rust-toolchain` (pinned commit updated)
 
 ## [1.0.1] - 2026-11-11
 
